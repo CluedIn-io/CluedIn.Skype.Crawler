@@ -40,6 +40,10 @@ namespace CluedIn.Provider.Skype
             var skypeCrawlJobData = new SkypeCrawlJobData();
             if (configuration.ContainsKey(SkypeConstants.KeyName.ApiKey))
             { skypeCrawlJobData.ApiKey = configuration[SkypeConstants.KeyName.ApiKey].ToString(); }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.email))
+            { skypeCrawlJobData.email = configuration[SkypeConstants.KeyName.email].ToString(); }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.password))
+            { skypeCrawlJobData.password = configuration[SkypeConstants.KeyName.password].ToString(); }
 
             return await Task.FromResult(skypeCrawlJobData);
         }

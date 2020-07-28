@@ -6,5 +6,6 @@ namespace CluedIn.Crawling.Skype.Core
     {
         public string ApiKey { get; set; }
         public string email { get; set; }
+        public string password { get; set; }
     }
 }

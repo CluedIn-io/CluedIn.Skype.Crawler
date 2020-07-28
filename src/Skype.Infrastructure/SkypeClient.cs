@@ -42,7 +42,8 @@ namespace CluedIn.Crawling.Skype.Infrastructure
             }
 
             _exchangeService = new ExchangeService(ExchangeVersion.Exchange2010_SP1);
-            _exchangeService.UseDefaultCredentials = true;
+            _exchangeService.UseDefaultCredentials = false;
+            _exchangeService.Credentials = new WebCredentials(skypeCrawlJobData.email, skypeCrawlJobData.password);
             _exchangeService.AutodiscoverUrl(skypeCrawlJobData.email);
 
             _imHistory = new List<EmailMessage>();
