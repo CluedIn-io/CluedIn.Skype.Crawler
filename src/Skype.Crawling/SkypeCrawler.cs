@@ -24,7 +24,10 @@ namespace CluedIn.Crawling.Skype
             var client = clientFactory.CreateNew(skypecrawlJobData);
 
             //retrieve data from provider and yield objects
-            
+            foreach (var item in client.Get())
+            {
+                yield return item;
+            }
         }       
     }
 }
