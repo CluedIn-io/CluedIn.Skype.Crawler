@@ -38,8 +38,6 @@ namespace CluedIn.Provider.Skype
                 throw new ArgumentNullException(nameof(configuration));
 
             var skypeCrawlJobData = new SkypeCrawlJobData();
-            if (configuration.ContainsKey(SkypeConstants.KeyName.ApiKey))
-            { skypeCrawlJobData.ApiKey = configuration[SkypeConstants.KeyName.ApiKey].ToString(); }
             if (configuration.ContainsKey(SkypeConstants.KeyName.email))
             { skypeCrawlJobData.email = configuration[SkypeConstants.KeyName.email].ToString(); }
             if (configuration.ContainsKey(SkypeConstants.KeyName.password))
@@ -79,7 +77,8 @@ namespace CluedIn.Provider.Skype
             {
                 //TODO add the transformations from specific CrawlJobData object to dictionary
                 // add tests to GetHelperConfigurationBehaviour.cs
-                dictionary.Add(SkypeConstants.KeyName.ApiKey, skypeCrawlJobData.ApiKey);
+                dictionary.Add(SkypeConstants.KeyName.email, skypeCrawlJobData.email);
+                dictionary.Add(SkypeConstants.KeyName.password, skypeCrawlJobData.password);
             }
 
             return await Task.FromResult(dictionary);

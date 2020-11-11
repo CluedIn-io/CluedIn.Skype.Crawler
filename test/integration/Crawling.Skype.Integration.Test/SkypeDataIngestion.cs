@@ -42,6 +42,5 @@ namespace CluedIn.Crawling.Skype.Integration.Test
             Assert.Equal(unique, count);
         }
 
-       
     }
 }

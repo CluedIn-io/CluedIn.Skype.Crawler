@@ -18,28 +18,21 @@ namespace CluedIn.Crawling.Skype.Infrastructure
     // This class should not contain crawling logic (i.e. in which order things are retrieved)
     public class SkypeClient
     {
-        private const string BaseUri = "http://sample.com";
-
         private readonly ILogger log;
-
-        private readonly IRestClient client;
 
         ExchangeService _exchangeService = null;
         int _pageSize = 50;
         Folder _imHistoryFolder = null;
         List<EmailMessage> _imHistory = null;
 
-        public SkypeClient(ILogger log, SkypeCrawlJobData skypeCrawlJobData, IRestClient client) // TODO: pass on any extra dependencies
+        public SkypeClient(ILogger log, SkypeCrawlJobData skypeCrawlJobData)
         {
             if (skypeCrawlJobData == null)
             {
                 throw new ArgumentNullException(nameof(skypeCrawlJobData));
             }
 
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
+            this.log = log ?? throw new ArgumentNullException(nameof(log));
 
             _exchangeService = new ExchangeService(ExchangeVersion.Exchange2010_SP1);
             _exchangeService.UseDefaultCredentials = false;
@@ -47,38 +40,6 @@ namespace CluedIn.Crawling.Skype.Infrastructure
             _exchangeService.AutodiscoverUrl(skypeCrawlJobData.email);
 
             _imHistory = new List<EmailMessage>();
-
-            this.log = log ?? throw new ArgumentNullException(nameof(log));
-            this.client = client ?? throw new ArgumentNullException(nameof(client));
-
-            // TODO use info from skypeCrawlJobData to instantiate the connection
-            client.BaseUrl = new Uri(BaseUri);
-            client.AddDefaultParameter("api_key", skypeCrawlJobData.ApiKey, ParameterType.QueryString);
-        }
-
-        private async Task<T> GetAsync<T>(string url)
-        {
-            var request = new RestRequest(url, Method.GET);
-
-            var response = await client.ExecuteTaskAsync(request);
-
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                var diagnosticMessage = $"Request to {client.BaseUrl}{url} failed, response {response.ErrorMessage} ({response.StatusCode})";
-                log.Error(() => diagnosticMessage);
-                throw new InvalidOperationException($"Communication to jsonplaceholder unavailable. {diagnosticMessage}");
-            }
-
-            var data = JsonConvert.DeserializeObject<T>(response.Content);
-
-            return data;
-        }
-
-        public AccountInformation GetAccountInformation()
-        {
-            //TODO - return some unique information about the remote data source
-            // that uniquely identifies the account
-            return new AccountInformation("", ""); 
         }
 
         public IEnumerable<Item> Get()
@@ -142,5 +103,13 @@ namespace CluedIn.Crawling.Skype.Infrastructure
 
             return imHistoryFolder;
         }
+
+        public AccountInformation GetAccountInformation()
+        {
+            //TODO - return some unique information about the remote data source
+            // that uniquely identifies the account
+            return new AccountInformation("", ""); 
+        }
+
     }
 }

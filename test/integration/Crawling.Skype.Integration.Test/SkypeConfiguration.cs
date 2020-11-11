@@ -9,7 +9,8 @@ namespace CluedIn.Crawling.Skype.Integration.Test
     {
       return new Dictionary<string, object>
             {
-                { SkypeConstants.KeyName.ApiKey, "demo" }
+                { SkypeConstants.KeyName.email, "replace@this.com" },
+                { SkypeConstants.KeyName.email, "hidden_secret123" }
             };
     }
   }

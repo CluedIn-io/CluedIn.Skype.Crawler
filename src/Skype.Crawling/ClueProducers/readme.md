@@ -1,1 +1,0 @@
-Add in here classes that know how to transform your strongly typed objects into Clues, by assigning properties to the CluedIn Vocabulary e.g. [UserClueProducer](https://github.com/CluedIn-io/CluedIn.Crawling.HelloWorld/blob/master/src/HelloWorld.Crawling/ClueProducers/UserClueProducer.cs)

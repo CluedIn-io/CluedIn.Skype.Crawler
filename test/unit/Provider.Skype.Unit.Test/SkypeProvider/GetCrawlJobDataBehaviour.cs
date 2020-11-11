@@ -28,7 +28,7 @@ namespace CluedIn.Provider.Skype.Unit.Test.SkypeProvider
         }
 
         [Theory]
-        [InlineAutoData(SkypeConstants.KeyName.ApiKey, nameof(SkypeCrawlJobData.ApiKey))]
+        [InlineAutoData(SkypeConstants.KeyName.email, nameof(SkypeCrawlJobData.email))]
         public async Task InitializesProperties(string key, string propertyName, string sampleValue, Guid organizationId, Guid userId, Guid providerDefinitionId)
         {
             var dictionary = new Dictionary<string, object>()

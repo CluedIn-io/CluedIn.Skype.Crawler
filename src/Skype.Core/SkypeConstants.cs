@@ -9,7 +9,6 @@ namespace CluedIn.Crawling.Skype.Core
     {
         public struct KeyName
         {
-            public const string ApiKey = nameof(ApiKey);
             public const string email = nameof(email);
             public const string password = nameof(password);
         }
