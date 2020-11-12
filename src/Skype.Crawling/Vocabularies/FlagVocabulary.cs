@@ -3,9 +3,9 @@ using CluedIn.Core.Data.Vocabularies;
 
 namespace CluedIn.Crawling.Skype.Vocabularies
 {
-    public class ExchangeSharedMailboxFlagVocabulary : SimpleVocabulary
+    public class FlagVocabulary : SimpleVocabulary
     {
-        public ExchangeSharedMailboxFlagVocabulary()
+        public FlagVocabulary()
         {
             VocabularyName = "Exchange Item Flag";
             KeyPrefix = "exchange.item.flag";

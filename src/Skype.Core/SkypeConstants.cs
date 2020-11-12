@@ -9,8 +9,10 @@ namespace CluedIn.Crawling.Skype.Core
     {
         public struct KeyName
         {
-            public const string email = nameof(email);
-            public const string password = nameof(password);
+            public const string Email = nameof(Email);
+            public const string Password = nameof(Password);
+            public const string FileSizeLimit = nameof(FileSizeLimit);
+            public const string IgnoredFileTypes = nameof(IgnoredFileTypes);
         }
 
         // TODO Complete the following section

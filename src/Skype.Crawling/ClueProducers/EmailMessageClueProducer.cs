@@ -13,6 +13,7 @@ using CluedIn.Core.IO;
 using CluedIn.Crawling.Factories;
 using CluedIn.Crawling.Helpers;
 using CluedIn.Crawling.Skype.Core;
+using CluedIn.Crawling.Skype.Core.Models;
 using CluedIn.Crawling.Skype.Vocabularies;
 using Microsoft.Exchange.WebServices.Data;
 
@@ -22,11 +23,13 @@ namespace CluedIn.Crawling.Skype.ClueProducers
     {
         private readonly IClueFactory _factory;
         private readonly AgentJobProcessorState<SkypeCrawlJobData> _state;
+        private readonly ApplicationContext _appContext;
 
-        public EmailMessageClueProducer(IClueFactory factory, AgentJobProcessorState<SkypeCrawlJobData> state)
+        public EmailMessageClueProducer(IClueFactory factory, AgentJobProcessorState<SkypeCrawlJobData> state, ApplicationContext appContext)
         {
             _factory = factory;
             _state = state;
+            _appContext = appContext;
         }
 
         protected override Clue MakeClueImpl(EmailMessage input, Guid accountId)
@@ -38,22 +41,24 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             // Metadata
 
             if (!string.IsNullOrWhiteSpace(input.Subject))
-                data.Name = input.Subject;
+                data.Name = input.Subject.PrintIfAvailable();
 
-            if (input.DateTimeCreated != null)
-                data.CreatedDate = input.DateTimeCreated;
+            data.CreatedDate = (DateTimeOffset?)input.DateTimeReceived
+                            ?? (DateTimeOffset?)input.DateTimeSent
+                            ?? (DateTimeOffset?)input.DateTimeCreated;
 
-            if (input.DateTimeReceived != null)
-                data.ModifiedDate = (DateTime?)input.DateTimeReceived;
+            data.ModifiedDate = (DateTime?)input.LastModifiedTime
+                               ?? (DateTime?)input.DateTimeSent;
 
             if (!string.IsNullOrWhiteSpace(input.Culture))
                 data.Culture = new CultureInfo(input.Culture);
 
             // Entity codes
+
             if (!string.IsNullOrEmpty(input.InternetMessageId))
                 data.Codes.Add(new EntityCode(data.EntityType, CodeOrigin.CluedIn.CreateSpecific("InternetMessageId"), input.InternetMessageId));
 
-            var vocabulary = new ExchangeSharedMailboxMailVocabulary();
+            var vocabulary = new MailVocabulary();
 
             data.Properties[vocabulary.DateTimeReceived] = input.DateTimeReceived.PrintIfAvailable();
             data.Properties[vocabulary.DateTimeSent] = input.DateTimeSent.PrintIfAvailable();
@@ -73,22 +78,24 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             if (input.ReplyTo != null)
             {
                 if (input.ReplyTo.Count == 1)
-                    this.WriteAddressProperty(data, vocabulary.ReplyTo, input.ReplyTo.First());
+                    WriteAddressProperty(data, vocabulary.ReplyTo, input.ReplyTo.First());
                 else
                     data.Properties[vocabulary.ReplyTo] = string.Join(";", input.ReplyTo.Where(a => a.Address != null && MailAddressUtility.IsValid(a.Address)).Select(a => a.Address));
             }
 
-            PersonReference fromReference = null;
-
             // From
             if (input.From != null)
-                fromReference = this.AddCreatedBy(clue, input.From, vocabulary.From);
+            {
+                var fromReference = AddCreatedBy(clue, input.From, vocabulary.From);
+                data.LastChangedBy = fromReference ?? data.LastChangedBy;
+                WriteAddressProperty(clue.Data.EntityData, vocabulary.From, input.From);
+            }
 
             // Sender
             if (input.Sender != null)
             {
-                this.AddCreatedBy(clue, input.Sender, vocabulary.Sender);
-                data.LastChangedBy = fromReference ?? data.LastChangedBy;
+                AddCreatedBy(clue, input.Sender, vocabulary.Sender);
+                WriteAddressProperty(clue.Data.EntityData, vocabulary.Sender, input.Sender);
             }
 
             // Recipients
@@ -106,12 +113,9 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                 AddEmailAddressEdges(clue, input.ToRecipients, EntityEdgeType.Recipient);
             }
 
-            // From ItemObserverBase
-
             // Properties
             data.Properties[vocabulary.IsAttachment] = input.IsAttachment.PrintIfAvailable();
             data.Properties[vocabulary.Sensitivity] = input.Sensitivity.PrintIfAvailable();
-            data.Properties[vocabulary.DateTimeReceived] = input.DateTimeReceived.PrintIfAvailable();
             data.Properties[vocabulary.Size] = input.Size.PrintIfAvailable();
             data.Properties[vocabulary.Culture] = input.Culture.PrintIfAvailable();
             data.Properties[vocabulary.Importance] = input.Importance.PrintIfAvailable();
@@ -121,7 +125,6 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             data.Properties[vocabulary.IsDraft] = input.IsDraft.PrintIfAvailable();
             data.Properties[vocabulary.IsResend] = input.IsResend.PrintIfAvailable();
             data.Properties[vocabulary.IsUnmodified] = input.IsUnmodified.PrintIfAvailable();
-            data.Properties[vocabulary.DateTimeSent] = input.DateTimeSent.PrintIfAvailable();
             data.Properties[vocabulary.DateTimeCreated] = input.DateTimeCreated.PrintIfAvailable();
             data.Properties[vocabulary.ReminderDueBy] = input.ReminderDueBy.PrintIfAvailable();
             data.Properties[vocabulary.IsReminderSet] = input.IsReminderSet.PrintIfAvailable();
@@ -140,9 +143,9 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             data.Properties[vocabulary.Preview] = input.Preview.PrintIfAvailable();
             data.Properties[vocabulary.IconIndex] = input.IconIndex.PrintIfAvailable();
             data.Properties[vocabulary.AllowedResponseActions] = input.AllowedResponseActions.PrintIfAvailable();
-            //data.Properties[vocabulary.IsNew] = value.ExPrintIfTrue(v => v.IsNew);
-            //data.Properties[vocabulary.IsFromMe] = value.ExPrintIfTrue(v => v.IsFromMe);
-            //data.Properties[vocabulary.EffectiveRights] = value.ExPrintIfAvailable(v => v.EffectiveRights);
+            data.Properties[vocabulary.IsNew] = input.IsNew.PrintIfAvailable();
+            data.Properties[vocabulary.IsFromMe] = input.IsFromMe.PrintIfAvailable();
+            data.Properties[vocabulary.EffectiveRights] = input.EffectiveRights.PrintIfAvailable();
 
             if (input.Flag != null && input.Flag.FlagStatus != ItemFlagStatus.NotFlagged)
             {
@@ -171,14 +174,13 @@ namespace CluedIn.Crawling.Skype.ClueProducers
 
                         if (message.InternetMessageHeaders != null)
                         {
-                            var mailHeadersVocab = new ExchangeSharedMailboxMailHeadersVocabulary();
+                            var mailHeadersVocab = new MailHeadersVocabulary();
                             foreach (var header in message.InternetMessageHeaders)
                                 data.Properties[mailHeadersVocab.KeyPrefix + mailHeadersVocab.KeySeparator + header.Name] = header.Value.PrintIfAvailable();
                         }
                     }
                     catch (Exception exc)
                     {
-                        // TODO: Figure out logging
                         _state.Log.Error(() => "Failed to load item internet headers.", exc);
                     }
                 }
@@ -186,7 +188,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
 
             // ExtendedProperties
             {
-                var extendedPropertiesVocabulary = new ExchangeSharedMailboxExtendedPropertiesVocabulary();
+                var extendedPropertiesVocabulary = new ExtendedPropertiesVocabulary();
                 foreach (var extendedProperty in (IEnumerable<ExtendedProperty>)input.ExtendedProperties ?? new ExtendedProperty[0])
                     data.Properties[extendedPropertiesVocabulary.KeyPrefix + extendedPropertiesVocabulary.KeySeparator + extendedProperty.PropertyDefinition.Name] = extendedProperty.Value.PrintIfAvailable();
             }
@@ -199,7 +201,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                     {
                         var version = (int)input.Service.RequestedServerVersion;
 
-                        PropertySet itempropertyset = version > (int)ExchangeVersion.Exchange2010 // TODO: Correct Exchange version
+                        PropertySet itempropertyset = version > (int)ExchangeVersion.Exchange2010 // TODO: Determine correct Exchange version
                                                         ? new PropertySet(BasePropertySet.FirstClassProperties, ItemSchema.Body, ItemSchema.UniqueBody, ItemSchema.Attachments)
                                                         : new PropertySet(BasePropertySet.FirstClassProperties, ItemSchema.Body, ItemSchema.Attachments);
 
@@ -224,7 +226,6 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                             }
                             catch (Exception exc)
                             {
-                                // TODO: Logging again
                                 _state.Log.Error(() => "Failed to index body", exc);
                             }
                         }
@@ -260,25 +261,27 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                 }
                 catch (Exception exception)
                 {
-                    // TODO: Logging again again again
                     _state.Log.Warn(() => "Could not index Attachment", exception);
                 }
             }
 
             // Edges
-            {
-                if (input.ParentFolderId != null && !this.IsFilteredFolder(item.Folder))
-                {
-                    var parentCode = new EntityCode(EntityType.Infrastructure.Folder, SkypeConstants.CodeOrigin, input.ParentFolderId.UniqueId);
+            if (input.ParentFolderId != null)
+                _factory.CreateOutgoingEntityReference(clue, EntityType.Infrastructure.Folder, EntityEdgeType.PartOf, input, input.ParentFolderId.UniqueId);
 
-                    var edge = new EntityEdge(
-                        EntityReference.CreateByKnownCode(clue.OriginEntityCode),
-                        EntityReference.CreateByKnownCode(parentCode, input.Folder?.DisplayName),
-                        EntityEdgeType.Parent);
-
-                    data.OutgoingEdges.Add(edge);
-                }
-            }
+            //{
+            //    if (input.ParentFolderId != null && !this.IsFilteredFolder(item.Folder))
+            //    {
+            //        var parentCode = new EntityCode(EntityType.Infrastructure.Folder, SkypeConstants.CodeOrigin, input.ParentFolderId.UniqueId);
+            //
+            //        var edge = new EntityEdge(
+            //            EntityReference.CreateByKnownCode(clue.OriginEntityCode),
+            //            EntityReference.CreateByKnownCode(parentCode, input.Folder?.DisplayName),
+            //            EntityEdgeType.Parent);
+            //
+            //        data.OutgoingEdges.Add(edge);
+            //    }
+            //}
 
             return clue;
         }
@@ -328,12 +331,11 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                         stream.CopyTo(fileStream);
                     }
 
-                    FileCrawlingUtility.ExtractContents(tempFile, clue.Data, clue, _state, this.appContext);
+                    FileCrawlingUtility.ExtractContents(tempFile, clue.Data, clue, _state, _appContext);
                 }
             }
             catch (Exception exception)
             {
-                // TODO: Logging again again
                 _state.Log.Error(() => "Error Indexing Content", exception);
             }
         }
@@ -381,8 +383,6 @@ namespace CluedIn.Crawling.Skype.ClueProducers
 
             clue.Data.EntityData.Authors.Add(personReference);
             clue.Data.EntityData.LastChangedBy = personReference;
-
-            this.WriteAddressProperty(clue.Data.EntityData, vocabularyKey, address);
 
             if (address.Address != null && !clue.Data.EntityData.OutgoingEdges.Any(e => e.EdgeType.Is(EntityEdgeType.CreatedBy)))
             {

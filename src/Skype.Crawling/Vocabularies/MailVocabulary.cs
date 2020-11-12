@@ -2,9 +2,9 @@
 
 namespace CluedIn.Crawling.Skype.Vocabularies
 {
-    public class ExchangeSharedMailboxMailVocabulary : ExchangeSharedMailboxMailBaseVocabulary
+    public class MailVocabulary : MailBaseVocabulary
     {
-        public ExchangeSharedMailboxMailVocabulary()
+        public MailVocabulary()
         {
             VocabularyName = "Exchange Mail";
             KeyPrefix = "exchange.mail";

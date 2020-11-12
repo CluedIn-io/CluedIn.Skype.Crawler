@@ -3,9 +3,9 @@ using CluedIn.Core.Data.Vocabularies;
 
 namespace CluedIn.Crawling.Skype.Vocabularies
 {
-    public class ExchangeSharedMailboxItemVocabulary : SimpleVocabulary
+    public class ItemVocabulary : SimpleVocabulary
     {
-        public ExchangeSharedMailboxItemVocabulary()
+        public ItemVocabulary()
         {
             VocabularyName = "Exchange Item";
             KeyPrefix = "exchange.item";
@@ -54,7 +54,7 @@ namespace CluedIn.Crawling.Skype.Vocabularies
                 ConversationId = group.Add(new VocabularyKey("conversationId", VocabularyKeyVisibility.ExcludeFromHashing));
                 UniqueId = group.Add(new VocabularyKey("uniqueId", VocabularyKeyVisibility.Hidden));
                 ParentFolderId = group.Add(new VocabularyKey("parentFolderId", VocabularyKeyVisibility.Hidden));
-                Flag = group.Add(new ExchangeSharedMailboxFlagVocabulary().AsCompositeKey("flag"));
+                Flag = group.Add(new FlagVocabulary().AsCompositeKey("flag"));
             });
 
             AddMapping(DateTimeCreated, CluedIn.Core.Data.Vocabularies.Vocabularies.CluedInDates.CreatedDate);
@@ -101,6 +101,6 @@ namespace CluedIn.Crawling.Skype.Vocabularies
         public VocabularyKey TextBody { get; protected set; }
         public VocabularyKey UniqueId { get; internal set; }
         public VocabularyKey ParentFolderId { get; internal set; }
-        public ExchangeSharedMailboxFlagVocabulary Flag { get; internal set; }
+        public FlagVocabulary Flag { get; internal set; }
     }
 }

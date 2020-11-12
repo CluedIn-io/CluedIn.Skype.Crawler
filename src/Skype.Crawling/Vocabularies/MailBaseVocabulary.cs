@@ -2,9 +2,9 @@
 
 namespace CluedIn.Crawling.Skype.Vocabularies
 {
-    public abstract class ExchangeSharedMailboxMailBaseVocabulary : ExchangeSharedMailboxItemVocabulary
+    public abstract class MailBaseVocabulary : ItemVocabulary
     {
-        protected ExchangeSharedMailboxMailBaseVocabulary()
+        protected MailBaseVocabulary()
         {
             AddGroup("Exchange Mail Details", group =>
             {

@@ -3,17 +3,12 @@ using System.IO;
 using System.Linq;
 using CluedIn.Core.Agent.Jobs;
 using CluedIn.Core.IO;
-using CluedIn.Crawling.Skype.Core;
 using Microsoft.Exchange.WebServices.Data;
 
-namespace CluedIn.Crawling.Skype.ClueProducers
+namespace CluedIn.Crawling.Skype.Core
 {
     public static class AttachmentHelper
     {
-        public static IEnumerable<Attachment> Filter(this IEnumerable<Attachment> items, AgentJobProcessorState<SkypeCrawlJobData> state)
-        {
-            return items.Where(a => !IsFiltered(state, a));
-        }
 
         public static bool IsFiltered(AgentJobProcessorState<SkypeCrawlJobData> state, Attachment value)
         {

@@ -38,10 +38,14 @@ namespace CluedIn.Provider.Skype
                 throw new ArgumentNullException(nameof(configuration));
 
             var skypeCrawlJobData = new SkypeCrawlJobData();
-            if (configuration.ContainsKey(SkypeConstants.KeyName.email))
-            { skypeCrawlJobData.email = configuration[SkypeConstants.KeyName.email].ToString(); }
-            if (configuration.ContainsKey(SkypeConstants.KeyName.password))
-            { skypeCrawlJobData.password = configuration[SkypeConstants.KeyName.password].ToString(); }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.Email))
+            { skypeCrawlJobData.Email = configuration[SkypeConstants.KeyName.Email].ToString(); }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.Password))
+            { skypeCrawlJobData.Password = configuration[SkypeConstants.KeyName.Password].ToString(); }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.FileSizeLimit))
+            { skypeCrawlJobData.FileSizeLimit = (long?)configuration[SkypeConstants.KeyName.FileSizeLimit]; }
+            if (configuration.ContainsKey(SkypeConstants.KeyName.IgnoredFileTypes))
+            { skypeCrawlJobData.IgnoredFileTypes = (List<string>)configuration[SkypeConstants.KeyName.IgnoredFileTypes]; }
 
             return await Task.FromResult(skypeCrawlJobData);
         }
@@ -75,10 +79,10 @@ namespace CluedIn.Provider.Skype
 
             if (jobData is SkypeCrawlJobData skypeCrawlJobData)
             {
-                //TODO add the transformations from specific CrawlJobData object to dictionary
-                // add tests to GetHelperConfigurationBehaviour.cs
-                dictionary.Add(SkypeConstants.KeyName.email, skypeCrawlJobData.email);
-                dictionary.Add(SkypeConstants.KeyName.password, skypeCrawlJobData.password);
+                dictionary.Add(SkypeConstants.KeyName.Email, skypeCrawlJobData.Email);
+                dictionary.Add(SkypeConstants.KeyName.Password, skypeCrawlJobData.Password);
+                dictionary.Add(SkypeConstants.KeyName.FileSizeLimit, skypeCrawlJobData.FileSizeLimit);
+                dictionary.Add(SkypeConstants.KeyName.IgnoredFileTypes, skypeCrawlJobData.IgnoredFileTypes);
             }
 
             return await Task.FromResult(dictionary);

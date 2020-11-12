@@ -2,10 +2,9 @@
 using System.Collections.Generic;
 using CluedIn.Core;
 using CluedIn.Core.Agent.Jobs;
-using CluedIn.Crawling.Skype.Core;
 using Microsoft.Exchange.WebServices.Data;
 
-namespace CluedIn.Crawling.Skype.ClueProducers
+namespace CluedIn.Crawling.Skype.Core.Models
 {
     public class AttachmentModel
     {

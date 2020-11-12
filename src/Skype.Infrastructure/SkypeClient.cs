@@ -11,35 +11,23 @@ using RestSharp;
 
 namespace CluedIn.Crawling.Skype.Infrastructure
 {
-    // TODO - This class should act as a client to retrieve the data to be crawled.
-    // It should provide the appropriate methods to get the data
-    // according to the type of data source (e.g. for AD, GetUsers, GetRoles, etc.)
-    // It can receive a IRestClient as a dependency to talk to a RestAPI endpoint.
-    // This class should not contain crawling logic (i.e. in which order things are retrieved)
     public class SkypeClient
     {
-        private readonly ILogger log;
-
         ExchangeService _exchangeService = null;
         int _pageSize = 50;
         Folder _imHistoryFolder = null;
-        List<EmailMessage> _imHistory = null;
 
-        public SkypeClient(ILogger log, SkypeCrawlJobData skypeCrawlJobData)
+        public SkypeClient(SkypeCrawlJobData skypeCrawlJobData)
         {
             if (skypeCrawlJobData == null)
             {
                 throw new ArgumentNullException(nameof(skypeCrawlJobData));
             }
 
-            this.log = log ?? throw new ArgumentNullException(nameof(log));
-
             _exchangeService = new ExchangeService(ExchangeVersion.Exchange2010_SP1);
             _exchangeService.UseDefaultCredentials = false;
-            _exchangeService.Credentials = new WebCredentials(skypeCrawlJobData.email, skypeCrawlJobData.password);
-            _exchangeService.AutodiscoverUrl(skypeCrawlJobData.email);
-
-            _imHistory = new List<EmailMessage>();
+            _exchangeService.Credentials = new WebCredentials(skypeCrawlJobData.Email, skypeCrawlJobData.Password);
+            _exchangeService.AutodiscoverUrl(skypeCrawlJobData.Email);
         }
 
         public IEnumerable<Item> Get()
