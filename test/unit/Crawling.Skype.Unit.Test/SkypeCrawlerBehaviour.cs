@@ -3,7 +3,7 @@ using CluedIn.Crawling;
 using CluedIn.Crawling.Skype;
 using CluedIn.Crawling.Skype.Infrastructure.Factories;
 using Moq;
-using Should;
+using Shouldly;
 using Xunit;
 
 namespace Crawling.Skype.Unit.Test

@@ -19,6 +19,5 @@ namespace CluedIn.Crawling.Skype.Core
             FileSizeLimit = GetValue<long?>(configuration, "FileSizeLimit", fallback: 10000); // TODO: consider fallback value
             IgnoredFileTypes = GetValue<List<string>>(configuration, "IgnoredFileTypes");
         }
-
     }
 }

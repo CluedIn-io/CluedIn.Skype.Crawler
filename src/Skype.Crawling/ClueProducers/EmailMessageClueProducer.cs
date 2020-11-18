@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using CluedIn.Core;
 using CluedIn.Core.Agent.Jobs;
@@ -16,20 +17,29 @@ using CluedIn.Crawling.Skype.Core;
 using CluedIn.Crawling.Skype.Core.Models;
 using CluedIn.Crawling.Skype.Vocabularies;
 using Microsoft.Exchange.WebServices.Data;
+using Microsoft.Extensions.Logging;
 
 namespace CluedIn.Crawling.Skype.ClueProducers
 {
     public class EmailMessageClueProducer : BaseClueProducer<EmailMessage>
     {
         private readonly IClueFactory _factory;
-        private readonly AgentJobProcessorState<SkypeCrawlJobData> _state;
         private readonly ApplicationContext _appContext;
+        private readonly IAgentJobProcessorState<SkypeCrawlJobData> _state;
 
-        public EmailMessageClueProducer(IClueFactory factory, AgentJobProcessorState<SkypeCrawlJobData> state, ApplicationContext appContext)
+        public EmailMessageClueProducer(IClueFactory factory, ApplicationContext appContext)
         {
             _factory = factory;
-            _state = state;
             _appContext = appContext;
+
+            try
+            {
+                _state = _appContext.Container.Resolve<IAgentJobProcessorState<SkypeCrawlJobData>>();
+            }
+            catch
+            {
+                throw new ArgumentException($"Argument {nameof(appContext)} does not contain IAgentJobProcessorState");
+            }
         }
 
         protected override Clue MakeClueImpl(EmailMessage input, Guid accountId)
@@ -37,6 +47,8 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             var clue = _factory.Create(EntityType.Mail, input.Id.UniqueId, accountId);
 
             var data = clue.Data.EntityData;
+
+            input = EmailMessage.Bind(input.Service, input.Id).Result;
 
             // Metadata
 
@@ -58,18 +70,27 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             if (!string.IsNullOrEmpty(input.InternetMessageId))
                 data.Codes.Add(new EntityCode(data.EntityType, CodeOrigin.CluedIn.CreateSpecific("InternetMessageId"), input.InternetMessageId));
 
+            // EmailMessage vocabulary
             var vocabulary = new MailVocabulary();
-
-            data.Properties[vocabulary.DateTimeReceived] = input.DateTimeReceived.PrintIfAvailable();
-            data.Properties[vocabulary.DateTimeSent] = input.DateTimeSent.PrintIfAvailable();
-            data.Properties[vocabulary.IsRead] = input.IsRead.PrintIfAvailable();
-            data.Properties[vocabulary.InternetMessageId] = input.InternetMessageId.PrintIfAvailable();
-            data.Properties[vocabulary.ConversationTopic] = input.ConversationTopic.PrintIfAvailable();
-            data.Properties[vocabulary.IsAssociated] = input.IsAssociated.PrintIfAvailable();
-            data.Properties[vocabulary.IsDeliveryReceiptRequested] = input.IsDeliveryReceiptRequested.PrintIfAvailable();
-            data.Properties[vocabulary.IsResponseRequested] = input.IsResponseRequested.PrintIfAvailable();
-            data.Properties[vocabulary.References] = input.References.PrintIfAvailable();
-
+            if (input.TryGetProperty(ItemSchema.DateTimeReceived, out var dateTimeReceived))
+                data.Properties[vocabulary.DateTimeReceived] = input.DateTimeReceived.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.DateTimeSent, out var dateTimeSent))
+                data.Properties[vocabulary.DateTimeSent] = input.DateTimeSent.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.IsRead, out var isRead))
+                data.Properties[vocabulary.IsRead] = input.IsRead.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.InternetMessageId, out var internetMessageId))
+                data.Properties[vocabulary.InternetMessageId] = input.InternetMessageId.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.ConversationTopic, out var conversationTopic))
+                data.Properties[vocabulary.ConversationTopic] = input.ConversationTopic.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsAssociated, out var isAssociated))
+                data.Properties[vocabulary.IsAssociated] = input.IsAssociated.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.IsResponseRequested, out var isResponseRequested))
+                data.Properties[vocabulary.IsResponseRequested] = input.IsResponseRequested.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.References, out var references))
+                data.Properties[vocabulary.References] = input.References.PrintIfAvailable();
+            if (input.TryGetProperty(EmailMessageSchema.IsDeliveryReceiptRequested, out var isDeliveryReceiptRequested))
+                data.Properties[vocabulary.IsDeliveryReceiptRequested] = isDeliveryReceiptRequested.PrintIfAvailable();
+                
             if (input.ReceivedBy != null)
                 WriteAddressProperty(data, vocabulary.ReceivedBy, input.ReceivedBy);
             if (input.ReceivedRepresenting != null)
@@ -99,53 +120,72 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             }
 
             // Recipients
-            {
-                var tmp = new PropertySet(BasePropertySet.FirstClassProperties, EmailMessageSchema.ToRecipients, EmailMessageSchema.BccRecipients, EmailMessageSchema.CcRecipients, ItemSchema.Attachments);
-                var iv = new ItemView(1000)
-                {
-                    PropertySet = tmp
-                };
+            AddEmailAddressEdges(clue, input.BccRecipients, EntityEdgeType.Recipient);
+            AddEmailAddressEdges(clue, input.CcRecipients, EntityEdgeType.Recipient);
+            AddEmailAddressEdges(clue, input.ToRecipients, EntityEdgeType.Recipient);
 
-                input.Load(tmp);
+            // Item vocabulary
+            if (input.TryGetProperty(ItemSchema.Sensitivity, out var sensitivity))
+                data.Properties[vocabulary.Sensitivity] = input.Sensitivity.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.Size, out var size))
+                data.Properties[vocabulary.Size] = input.Size.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.Culture, out var culture))
+                data.Properties[vocabulary.Culture] = input.Culture.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.Importance, out var importance))
+                data.Properties[vocabulary.Importance] = input.Importance.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.InReplyTo, out var inReplyTo))
+                data.Properties[vocabulary.InReplyTo] = input.InReplyTo.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsSubmitted, out var isSubmitted))
+                data.Properties[vocabulary.IsSubmitted] = input.IsSubmitted.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsDraft, out var isDraft))
+                data.Properties[vocabulary.IsDraft] = input.IsDraft.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsResend, out var isResend))
+                data.Properties[vocabulary.IsResend] = input.IsResend.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsUnmodified, out var isUnmodified))
+                data.Properties[vocabulary.IsUnmodified] = input.IsUnmodified.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.DateTimeCreated, out var dateTimeCreated))
+                data.Properties[vocabulary.DateTimeCreated] = input.DateTimeCreated.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.ReminderDueBy, out var reminderDueBy))
+                data.Properties[vocabulary.ReminderDueBy] = input.ReminderDueBy.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsReminderSet, out var isReminderSet))
+                data.Properties[vocabulary.IsReminderSet] = input.IsReminderSet.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.ReminderMinutesBeforeStart, out var reminderMinutesBeforeStart))
+                data.Properties[vocabulary.ReminderMinutesBeforeStart] = input.ReminderMinutesBeforeStart.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.DisplayCc, out var displayCc))
+                data.Properties[vocabulary.DisplayCc] = input.DisplayCc.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.DisplayTo, out var displayTo))
+                data.Properties[vocabulary.DisplayTo] = input.DisplayTo.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.HasAttachments, out var hasAttachments))
+                data.Properties[vocabulary.HasAttachments] = input.HasAttachments.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.ItemClass, out var itemClass))
+                data.Properties[vocabulary.ItemClass] = input.ItemClass.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.Subject, out var subject))
+                data.Properties[vocabulary.Subject] = input.Subject.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.WebClientReadFormQueryString, out var webClientReadFormQueryString))
+                data.Properties[vocabulary.WebClientReadFormQueryString] = input.WebClientReadFormQueryString.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.WebClientEditFormQueryString, out var webClientEditFormQueryString))
+                data.Properties[vocabulary.WebClientEditFormQueryString] = input.WebClientEditFormQueryString.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.LastModifiedName, out var lastModifiedName))
+                data.Properties[vocabulary.LastModifiedName] = input.LastModifiedName.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.LastModifiedTime, out var lastModifiedTime))
+                data.Properties[vocabulary.LastModifiedTime] = input.LastModifiedTime.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.ConversationId, out var conversationId))
+                data.Properties[vocabulary.ConversationId] = input.ConversationId?.UniqueId.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.RetentionDate, out var retentionDate))
+                data.Properties[vocabulary.RetentionDate] = input.RetentionDate.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.Preview, out var preview))
+                data.Properties[vocabulary.Preview] = input.Preview.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IconIndex, out var iconIndex))
+                data.Properties[vocabulary.IconIndex] = input.IconIndex.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.AllowedResponseActions, out var allowedResponseActions))
+                data.Properties[vocabulary.AllowedResponseActions] = input.AllowedResponseActions.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.IsFromMe, out var isFromMe))
+                data.Properties[vocabulary.IsFromMe] = input.IsFromMe.PrintIfAvailable();
+            if (input.TryGetProperty(ItemSchema.EffectiveRights, out var effectiveRights))
+                data.Properties[vocabulary.EffectiveRights] = input.EffectiveRights.PrintIfAvailable();
 
-                AddEmailAddressEdges(clue, input.BccRecipients, EntityEdgeType.Recipient);
-                AddEmailAddressEdges(clue, input.CcRecipients, EntityEdgeType.Recipient);
-                AddEmailAddressEdges(clue, input.ToRecipients, EntityEdgeType.Recipient);
-            }
-
-            // Properties
             data.Properties[vocabulary.IsAttachment] = input.IsAttachment.PrintIfAvailable();
-            data.Properties[vocabulary.Sensitivity] = input.Sensitivity.PrintIfAvailable();
-            data.Properties[vocabulary.Size] = input.Size.PrintIfAvailable();
-            data.Properties[vocabulary.Culture] = input.Culture.PrintIfAvailable();
-            data.Properties[vocabulary.Importance] = input.Importance.PrintIfAvailable();
-            data.Properties[vocabulary.InReplyTo] = input.InReplyTo.PrintIfAvailable();
-            data.Properties[vocabulary.IsSubmitted] = input.IsSubmitted.PrintIfAvailable();
-            data.Properties[vocabulary.IsAssociated] = input.IsAssociated.PrintIfAvailable();
-            data.Properties[vocabulary.IsDraft] = input.IsDraft.PrintIfAvailable();
-            data.Properties[vocabulary.IsResend] = input.IsResend.PrintIfAvailable();
-            data.Properties[vocabulary.IsUnmodified] = input.IsUnmodified.PrintIfAvailable();
-            data.Properties[vocabulary.DateTimeCreated] = input.DateTimeCreated.PrintIfAvailable();
-            data.Properties[vocabulary.ReminderDueBy] = input.ReminderDueBy.PrintIfAvailable();
-            data.Properties[vocabulary.IsReminderSet] = input.IsReminderSet.PrintIfAvailable();
-            data.Properties[vocabulary.ReminderMinutesBeforeStart] = input.ReminderMinutesBeforeStart.PrintIfAvailable();
-            data.Properties[vocabulary.DisplayCc] = input.DisplayCc.PrintIfAvailable();
-            data.Properties[vocabulary.DisplayTo] = input.DisplayTo.PrintIfAvailable();
-            data.Properties[vocabulary.HasAttachments] = input.HasAttachments.PrintIfAvailable();
-            data.Properties[vocabulary.ItemClass] = input.ItemClass.PrintIfAvailable();
-            data.Properties[vocabulary.Subject] = input.Subject.PrintIfAvailable();
-            data.Properties[vocabulary.WebClientReadFormQueryString] = input.WebClientReadFormQueryString.PrintIfAvailable();
-            data.Properties[vocabulary.WebClientEditFormQueryString] = input.WebClientEditFormQueryString.PrintIfAvailable();
-            data.Properties[vocabulary.LastModifiedName] = input.LastModifiedName.PrintIfAvailable();
-            data.Properties[vocabulary.LastModifiedTime] = input.LastModifiedTime.PrintIfAvailable();
-            data.Properties[vocabulary.ConversationId] = input.ConversationId?.UniqueId.PrintIfAvailable();
-            data.Properties[vocabulary.RetentionDate] = input.RetentionDate.PrintIfAvailable();
-            data.Properties[vocabulary.Preview] = input.Preview.PrintIfAvailable();
-            data.Properties[vocabulary.IconIndex] = input.IconIndex.PrintIfAvailable();
-            data.Properties[vocabulary.AllowedResponseActions] = input.AllowedResponseActions.PrintIfAvailable();
             data.Properties[vocabulary.IsNew] = input.IsNew.PrintIfAvailable();
-            data.Properties[vocabulary.IsFromMe] = input.IsFromMe.PrintIfAvailable();
-            data.Properties[vocabulary.EffectiveRights] = input.EffectiveRights.PrintIfAvailable();
 
             if (input.Flag != null && input.Flag.FlagStatus != ItemFlagStatus.NotFlagged)
             {
@@ -181,7 +221,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                     }
                     catch (Exception exc)
                     {
-                        _state.Log.Error(() => "Failed to load item internet headers.", exc);
+                        _state.Log.LogError("Failed to load item internet headers. ", exc);
                     }
                 }
             }
@@ -201,7 +241,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                     {
                         var version = (int)input.Service.RequestedServerVersion;
 
-                        PropertySet itempropertyset = version > (int)ExchangeVersion.Exchange2010 // TODO: Determine correct Exchange version
+                        PropertySet itempropertyset = version > (int)ExchangeVersion.Exchange2010
                                                         ? new PropertySet(BasePropertySet.FirstClassProperties, ItemSchema.Body, ItemSchema.UniqueBody, ItemSchema.Attachments)
                                                         : new PropertySet(BasePropertySet.FirstClassProperties, ItemSchema.Body, ItemSchema.Attachments);
 
@@ -226,7 +266,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                             }
                             catch (Exception exc)
                             {
-                                _state.Log.Error(() => "Failed to index body", exc);
+                                _state.Log.LogError("Failed to index body", exc);
                             }
                         }
 
@@ -237,7 +277,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                     }
                     catch (Exception exc)
                     {
-                        _state.Log.Error(() => "Failed to index body", exc);
+                        _state.Log.LogError("Failed to index body", exc);
                     }
                 }
             }
@@ -261,7 +301,7 @@ namespace CluedIn.Crawling.Skype.ClueProducers
                 }
                 catch (Exception exception)
                 {
-                    _state.Log.Warn(() => "Could not index Attachment", exception);
+                    _state.Log.LogWarning("Could not index Attachment", exception);
                 }
             }
 
@@ -273,12 +313,12 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             //    if (input.ParentFolderId != null && !this.IsFilteredFolder(item.Folder))
             //    {
             //        var parentCode = new EntityCode(EntityType.Infrastructure.Folder, SkypeConstants.CodeOrigin, input.ParentFolderId.UniqueId);
-            //
+
             //        var edge = new EntityEdge(
             //            EntityReference.CreateByKnownCode(clue.OriginEntityCode),
             //            EntityReference.CreateByKnownCode(parentCode, input.Folder?.DisplayName),
             //            EntityEdgeType.Parent);
-            //
+
             //        data.OutgoingEdges.Add(edge);
             //    }
             //}
@@ -336,32 +376,32 @@ namespace CluedIn.Crawling.Skype.ClueProducers
             }
             catch (Exception exception)
             {
-                _state.Log.Error(() => "Error Indexing Content", exception);
+                _state.Log.LogError("Error Indexing Content", exception);
             }
         }
 
         protected Item BindItem(Item item, ExchangeService service, PropertySet propertySet)
         {
             if (item.GetType() == typeof(Appointment))
-                return Appointment.Bind(service, item.Id, propertySet);
+                return Appointment.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(Task))
-                return Task.Bind(service, item.Id, propertySet);
+                return Task.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(Contact))
-                return Contact.Bind(service, item.Id, propertySet);
+                return Contact.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(ContactGroup))
-                return ContactGroup.Bind(service, item.Id, propertySet);
+                return ContactGroup.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(PostItem))
-                return PostItem.Bind(service, item.Id, propertySet);
+                return PostItem.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(MeetingCancellation))
-                return MeetingCancellation.Bind(service, item.Id, propertySet);
+                return MeetingCancellation.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(MeetingRequest))
-                return MeetingRequest.Bind(service, item.Id, propertySet);
+                return MeetingRequest.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(MeetingResponse))
-                return MeetingResponse.Bind(service, item.Id, propertySet);
+                return MeetingResponse.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(MeetingMessage))
-                return MeetingMessage.Bind(service, item.Id, propertySet);
+                return MeetingMessage.Bind(service, item.Id, propertySet).Result;
             else if (item.GetType() == typeof(EmailMessage))
-                return EmailMessage.Bind(service, item.Id, propertySet);
+                return EmailMessage.Bind(service, item.Id, propertySet).Result;
             else
                 throw new Exception("Unknown Exchange Item type: " + item.GetType().FullName);
         }

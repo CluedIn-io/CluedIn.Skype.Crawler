@@ -1,38 +1,45 @@
 using System.IO;
 using System.Reflection;
-using CluedIn.Crawling.Skype.Core;
-using CluedIn.Core.Agent.Jobs;
 using Castle.MicroKernel.Registration;
-using CrawlerIntegrationTesting.Log;
-using CluedIn.Core.Logging;
+using CluedIn.Crawling.Skype.Core;
 using Xunit.Abstractions;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using DebugCrawlerHost = CrawlerIntegrationTesting.CrawlerHost.DebugCrawlerHost<CluedIn.Crawling.Skype.Core.SkypeCrawlJobData>;
 using System.Collections.Generic;
 using CluedIn.Core.Data;
-using DebugCrawlerHost = CrawlerIntegrationTesting.CrawlerHost.DebugCrawlerHost<CluedIn.Crawling.Skype.Core.SkypeCrawlJobData>;
+using CluedIn.Core.Agent.Jobs;
+using System.Threading.Tasks;
 
 namespace CluedIn.Crawling.Skype.Integration.Test
 {
     public class SkypeTestFixture
     {
-        public Dictionary<string, int> EntityTypeCounts { get; } 
+        //public ClueStorage ClueStorage { get; }
+        public Dictionary<string, int> EntityTypeCounts;
+
         private readonly DebugCrawlerHost debugCrawlerHost;
 
-        public TestLogger Log { get; }
+        public ILogger<SkypeTestFixture> Log { get; }
+
         public SkypeTestFixture()
         {
             var executingFolder = new FileInfo(Assembly.GetExecutingAssembly().CodeBase.Substring(8)).DirectoryName;
-            debugCrawlerHost = new DebugCrawlerHost(executingFolder, SkypeConstants.ProviderName);
+            debugCrawlerHost = new DebugCrawlerHost(executingFolder, SkypeConstants.ProviderName, c => {
+                c.Register(Component.For<ILogger>().UsingFactoryMethod(_ => NullLogger.Instance).LifestyleSingleton());
+                c.Register(Component.For<ILoggerFactory>().UsingFactoryMethod(_ => NullLoggerFactory.Instance).LifestyleSingleton());
+            });
 
+            //ClueStorage = new ClueStorage();
             EntityTypeCounts = new Dictionary<string, int>();
 
-            Log = debugCrawlerHost.AppContext.Container.Resolve<TestLogger>();
+            Log = debugCrawlerHost.AppContext.Container.Resolve<ILogger<SkypeTestFixture>>();
 
-            debugCrawlerHost.ProcessClue += this.AddClue;
+            debugCrawlerHost.ProcessClue += IncrementEntityTypeCount;
 
             var debugAgentJobProcessorState = new CrawlerIntegrationTesting.CrawlerHost.DebugAgentJobProcessorState<SkypeCrawlJobData>
             {
-                Log = new LoggingTargetLogger(this.Log),
+                Log = Log,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource(),
                 JobData = new SkypeCrawlJobData(SkypeConfiguration.Create()),
                 Status = new AgentJobStatus(),
@@ -45,12 +52,12 @@ namespace CluedIn.Crawling.Skype.Integration.Test
             debugCrawlerHost.Execute(SkypeConfiguration.Create(), SkypeConstants.ProviderId);
         }
 
-        public void AddClue(Clue clue)
+        public void IncrementEntityTypeCount(Clue clue)
         {
-            var entityType = clue.Data.ProcessedEntityData.EntityType;
+            var entityType = clue.Data.EntityData.EntityType;
             if (EntityTypeCounts.ContainsKey(entityType))
             {
-                EntityTypeCounts[entityType] += 1;
+                EntityTypeCounts[entityType]++;
             }
             else
             {
@@ -62,13 +69,14 @@ namespace CluedIn.Crawling.Skype.Integration.Test
         {
             foreach(var entityType in EntityTypeCounts.Keys)
             {
-                output.WriteLine($"{entityType}: {EntityTypeCounts[entityType]}");
+                output.WriteLine($"{entityType} count: {EntityTypeCounts[entityType]}");
             }
         }
 
         public void PrintLogs(ITestOutputHelper output)
         {
-            output.WriteLine(Log.PrintLogs());
+            //TODO:
+            //output.WriteLine(Log.PrintLogs());
         }
 
         public void Dispose()

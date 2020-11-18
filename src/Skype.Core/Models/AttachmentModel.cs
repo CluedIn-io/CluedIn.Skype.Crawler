@@ -25,7 +25,7 @@ namespace CluedIn.Crawling.Skype.Core.Models
 
         public static IEnumerable<AttachmentModel> FilterAttachments(
             IEnumerable<AttachmentModel> attachments,
-            AgentJobProcessorState<SkypeCrawlJobData> state)
+            IAgentJobProcessorState<SkypeCrawlJobData> state)
         {
             var skippedFirstContactPhoto = false;
 

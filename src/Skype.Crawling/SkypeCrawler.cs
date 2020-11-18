@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 using CluedIn.Core.Crawling;
 using CluedIn.Crawling.Skype.Core;
+using CluedIn.Crawling.Skype.Core.Models;
 using CluedIn.Crawling.Skype.Infrastructure.Factories;
 
 namespace CluedIn.Crawling.Skype
@@ -23,7 +24,6 @@ namespace CluedIn.Crawling.Skype
 
             var client = clientFactory.CreateNew(skypecrawlJobData);
 
-            //retrieve data from provider and yield objects
             foreach (var item in client.Get())
             {
                 yield return item;

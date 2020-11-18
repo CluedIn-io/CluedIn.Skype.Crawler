@@ -5,7 +5,6 @@ using Microsoft.Exchange.WebServices.Data;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using CluedIn.Crawling.Skype.Core;
-using jdk.nashorn.@internal.ir;
 using CluedIn.Crawling.Skype.Vocabularies;
 using CluedIn.Crawling.Helpers;
 
@@ -14,14 +13,22 @@ namespace CluedIn.Crawling.Skype.ClueProducers
     public class ConversationClueProducer : BaseClueProducer<Conversation>
     {
         private readonly IClueFactory _factory;
-        private readonly AgentJobProcessorState<SkypeCrawlJobData> _state;
         private readonly ApplicationContext _appContext;
+        private readonly IAgentJobProcessorState<SkypeCrawlJobData> _state;
 
-        public ConversationClueProducer(IClueFactory factory, AgentJobProcessorState<SkypeCrawlJobData> state, ApplicationContext appContext)
+        public ConversationClueProducer(IClueFactory factory, ApplicationContext appContext)
         {
             _factory = factory;
-            _state = state;
             _appContext = appContext;
+
+            try
+            {
+                _state = _appContext.Container.Resolve<IAgentJobProcessorState<SkypeCrawlJobData>>();
+            }
+            catch
+            {
+                throw new ArgumentException($"Argument {nameof(appContext)} does not contain IAgentJobProcessorState");
+            }
         }
 
         protected override Clue MakeClueImpl(Conversation input, Guid accountId)

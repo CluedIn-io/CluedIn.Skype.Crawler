@@ -10,7 +10,7 @@ namespace CluedIn.Crawling.Skype.Core
     public static class AttachmentHelper
     {
 
-        public static bool IsFiltered(AgentJobProcessorState<SkypeCrawlJobData> state, Attachment value)
+        public static bool IsFiltered(IAgentJobProcessorState<SkypeCrawlJobData> state, Attachment value)
         {
             var cleanName = PathEx.GetCleanFileName(value.Name);
             var fileNameExtension = Path.GetExtension(cleanName);

@@ -59,7 +59,7 @@ namespace CluedIn.Crawling.Skype.Core
         public const string ProviderRootCodeValue = "Skype";
         public const string CrawlerName = "SkypeCrawler";
         public const string CrawlerComponentName = "SkypeCrawler";
-        public static readonly Guid ProviderId = Guid.Parse("16b96cf4-88cb-4d57-8a48-1c31a0e4f7cf");
+        public static readonly Guid ProviderId = Guid.Parse("f2181c40-6cd8-4981-87f3-5a3f09a8ad33");
         public const string ProviderName = "Skype";
 
         
@@ -72,7 +72,7 @@ namespace CluedIn.Crawling.Skype.Core
                                        { "Tracking",        "Expenses and Invoices against customers" },
                                        { "Intelligence",    "Aggregate types of invoices and expenses against customers and companies." }
                                    },
-            Icon = ProviderIconFactory.CreateUri(ProviderId),
+            Icon = ProviderIconFactory.CreateConnectorUri(ProviderId),
             ProviderName = ProviderName,
             ProviderId = ProviderId,
             Webhooks = SupportsWebHooks
