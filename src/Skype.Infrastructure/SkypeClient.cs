@@ -16,6 +16,7 @@ namespace CluedIn.Crawling.Skype.Infrastructure
         ExchangeService _exchangeService = null;
         int _pageSize = 50;
         Folder _imHistoryFolder = null;
+        SkypeCrawlJobData _crawlJobData;
 
         public SkypeClient(SkypeCrawlJobData skypeCrawlJobData)
         {
@@ -24,10 +25,25 @@ namespace CluedIn.Crawling.Skype.Infrastructure
                 throw new ArgumentNullException(nameof(skypeCrawlJobData));
             }
 
-            _exchangeService = new ExchangeService(ExchangeVersion.Exchange2010_SP1);
+            _crawlJobData = skypeCrawlJobData;
+            _exchangeService = new ExchangeService(ExchangeVersion.Exchange2013_SP1);
             _exchangeService.UseDefaultCredentials = false;
             _exchangeService.Credentials = new WebCredentials(skypeCrawlJobData.Email, skypeCrawlJobData.Password);
-            _exchangeService.AutodiscoverUrl(skypeCrawlJobData.Email);
+            _exchangeService.AutodiscoverUrl(skypeCrawlJobData.Email, ValidationCallback);
+        }
+
+        private static bool ValidationCallback(string redirectionUrl)
+        {
+            bool result = false;
+
+            var redirectionUri = new Uri(redirectionUrl);
+
+            if (redirectionUri.Scheme == "https")
+            {
+                result = true;
+            }
+
+            return result;
         }
 
         public IEnumerable<Item> Get()
@@ -96,7 +112,7 @@ namespace CluedIn.Crawling.Skype.Infrastructure
         {
             //TODO - return some unique information about the remote data source
             // that uniquely identifies the account
-            return new AccountInformation("", ""); 
+            return new AccountInformation(_crawlJobData.Email, _crawlJobData.Email); 
         }
 
     }

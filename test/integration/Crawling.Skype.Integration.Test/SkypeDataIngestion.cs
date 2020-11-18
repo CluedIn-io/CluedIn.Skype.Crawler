@@ -22,9 +22,7 @@ namespace CluedIn.Crawling.Skype.Integration.Test
         //[InlineData("SOME_ENTITY_TYPE", 1)]
         public void CorrectNumberOfEntityTypes(string entityType, int expectedCount)
         {
-            var foundCount = 0;
-            if (fixture.EntityTypeCounts.ContainsKey(entityType))
-                foundCount = fixture.EntityTypeCounts[entityType];
+            var foundCount = fixture.ClueStorage.CountOfType(entityType);
 
             //You could use this method to output the logs inside the test case
             fixture.PrintLogs(output);
