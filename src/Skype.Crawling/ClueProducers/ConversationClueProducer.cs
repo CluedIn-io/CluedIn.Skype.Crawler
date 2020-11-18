@@ -5,7 +5,6 @@ using Microsoft.Exchange.WebServices.Data;
 using CluedIn.Core;
 using CluedIn.Core.Data;
 using CluedIn.Crawling.Skype.Core;
-using jdk.nashorn.@internal.ir;
 using CluedIn.Crawling.Skype.Vocabularies;
 using CluedIn.Crawling.Helpers;
 

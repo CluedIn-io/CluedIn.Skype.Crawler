@@ -16,7 +16,8 @@ namespace CluedIn.Crawling.Skype.ClueProducers
 
         protected override Clue MakeClueImpl(TestObject input, Guid accountId)
         {
-            throw new NotImplementedException();
+            var clue = _factory.Create(EntityType.Person, input.IntProperty.ToString(), accountId);
+            return clue;
         }
     }
 }
